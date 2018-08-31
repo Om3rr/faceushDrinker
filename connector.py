@@ -7,7 +7,7 @@ import datetime
 from time import sleep
 from constants import *
 driver = webdriver.Chrome()
-driver.set_window_position(0, -2000)
+# driver.set_window_position(0, -2000)
 
 def save_cookies():
     cookies = driver.get_cookies()
@@ -37,8 +37,26 @@ def site_login():
     driver.find_element_by_xpath('//label[@id="loginbutton"]/input').click()
     save_cookies()
 
-def get_items(link):
-    driver.get(link)
+def wait_for_page_to_load():
+    while True:
+        if driver.execute_script('return document.readyState;') == 'complete':
+            break
+        else:
+            sleep(1)
+
+
+def search_in_group(group, search):
+    driver.get(group)
+    driver.find_element_by_xpath("//input[@aria-label='Search'][@placeholder='Search this group']").send_keys(search)
+    driver.find_element_by_xpath('//button[@title="Search this group"][@type="submit"]').click()
+    sleep(5)
+    wait_for_page_to_load()
+    try:
+        driver.find_element_by_xpath("//a[contains(@href,'chronosort')]").click()
+    except Exception as e:
+        pass
+
+def get_items():
     driver.set_window_size(1920, 1080)
     sleep(1)
     # document.evaluate('//div[starts-with(@id, "BrowseResultsContainer")]//div[starts-with(data-highlight-tokens,"[")]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
@@ -70,11 +88,11 @@ def empty_captures():
         os.remove(f)
 
 def main():
-
     is_log_in = check_login()
     if not is_log_in:
         site_login()
-    parsed = get_items(LINK)
+    search_in_group(GROUP_LINK, SEARCH_FOR)
+    parsed = get_items()
     with open('all_posts.json', 'rb') as f:
         all_posts = json.load(f)
         all_descriptions = [x['description'] for x in all_posts]
