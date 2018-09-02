@@ -7,12 +7,13 @@ from constants import *
 from secrets import *
 
 
-def notify(message, reply=None):
+def notify(parsed, reply=None):
+    message = parsed['description']
     res = requests.post(f"https://api.telegram.org/bot{API_KEY}/sendMessage", {"chat_id": CHAT_ID, "text": message, "reply_to_message_id": reply})
 
 
 def sendPhoto(parse, message_id=''):
-    path = parse['description']
+    path = parse['path']
     caption = parse['href']
     chat = parse['chat']
     img = Image.open(path, mode='r')

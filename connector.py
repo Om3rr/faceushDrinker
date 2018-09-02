@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from selenium import webdriver
 from croper import crop
 from telegram import notify, sendPhoto, random_string
@@ -12,8 +13,13 @@ from secrets import *
 driver = None
 def init_driver():
     global driver
-    driver = webdriver.Chrome()
-    driver.set_window_position(0, -2000)
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--window-size=1420,1080')
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(chrome_options=chrome_options)
+    # driver.set_window_position(0, -2000)
 def save_cookies():
     cookies = driver.get_cookies()
     with open('cookies.json', 'w+') as f:
@@ -85,6 +91,7 @@ def get_items(chat_id=CHAT_ID):
             parsed.append({'time': time, 'text': text, 'size': size, 'location': location, 'description': description, 'path': path, "href": href, "chat": chat_id})
         except Exception as e:
             print(e)
+            traceback.print_tb(e.__traceback__)
             continue
     return parsed
 import glob
@@ -97,8 +104,9 @@ def empty_captures():
 def get_all_posts():
     with open('all_posts.json', 'rb') as f:
         all_posts = json.load(f)
+        print(all_posts)
         all_descriptions = [x['description'] for x in all_posts]
-    return all_posts, all_descriptions
+    return all_descriptions, all_posts
 
 def set_all_posts(all_posts):
     with open('all_posts.json', 'w+') as f:
@@ -145,5 +153,7 @@ while True:
         main()
     except Exception as e:
         print("Boom")
+        traceback.print_tb(e.__traceback__)
+        print(e)
         crashes += 1
     sleep(3*60)
