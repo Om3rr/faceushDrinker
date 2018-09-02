@@ -1,3 +1,5 @@
+import os
+import sys
 from selenium import webdriver
 from croper import crop
 from telegram import notify, sendPhoto, random_string
@@ -6,9 +8,12 @@ from fullpage import fullpage_screenshot
 import datetime
 from time import sleep
 from constants import *
-driver = webdriver.Chrome()
-# driver.set_window_position(0, -2000)
-
+from secrets import *
+driver = None
+def init_driver():
+    global driver
+    driver = webdriver.Chrome()
+    driver.set_window_position(0, -2000)
 def save_cookies():
     cookies = driver.get_cookies()
     with open('cookies.json', 'w+') as f:
@@ -33,11 +38,12 @@ def check_login():
 def site_login():
     driver.get ("https://www.facebook.com")
     driver.find_element_by_id("email").send_keys(FB_EMAIL)
-    driver.find_element_by_id ("pass").send_keys(FB_PASSWORD)
+    driver.find_element_by_id("pass").send_keys(FB_PASSWORD)
     driver.find_element_by_xpath('//label[@id="loginbutton"]/input').click()
     save_cookies()
 
 def wait_for_page_to_load():
+    sleep(5)
     while True:
         if driver.execute_script('return document.readyState;') == 'complete':
             break
@@ -49,14 +55,14 @@ def search_in_group(group, search):
     driver.get(group)
     driver.find_element_by_xpath("//input[@aria-label='Search'][@placeholder='Search this group']").send_keys(search)
     driver.find_element_by_xpath('//button[@title="Search this group"][@type="submit"]').click()
-    sleep(5)
     wait_for_page_to_load()
     try:
         driver.find_element_by_xpath("//a[contains(@href,'chronosort')]").click()
+        wait_for_page_to_load()
     except Exception as e:
         pass
 
-def get_items():
+def get_items(chat_id=CHAT_ID):
     driver.set_window_size(1920, 1080)
     sleep(1)
     # document.evaluate('//div[starts-with(@id, "BrowseResultsContainer")]//div[starts-with(data-highlight-tokens,"[")]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
@@ -70,14 +76,15 @@ def get_items():
             size = element.size
             text = element.text
             description = text.split("\n")[4]
-            timestamp = element.find_element_by_class_name("timestamp")
+            timestamp = element.find_element_by_xpath("//a/abbr[@data-utime]")
             a_element = timestamp.find_element_by_xpath("..")
             href = a_element.get_attribute('href')
             time = str(datetime.datetime.now())
             path = f"captures/{random_string(12)}.png"
             crop(screenshot_filename, {'size': size, 'location': location}, path)
-            parsed.append({'time': time, 'text': text, 'size': size, 'location': location, 'description': description, 'path': path, "href": href})
+            parsed.append({'time': time, 'text': text, 'size': size, 'location': location, 'description': description, 'path': path, "href": href, "chat": chat_id})
         except Exception as e:
+            print(e)
             continue
     return parsed
 import glob
@@ -87,31 +94,56 @@ def empty_captures():
     for f in files:
         os.remove(f)
 
-def main():
-    is_log_in = check_login()
-    if not is_log_in:
-        site_login()
-    search_in_group(GROUP_LINK, SEARCH_FOR)
-    parsed = get_items()
+def get_all_posts():
     with open('all_posts.json', 'rb') as f:
         all_posts = json.load(f)
         all_descriptions = [x['description'] for x in all_posts]
+    return all_posts, all_descriptions
+
+def set_all_posts(all_posts):
+    with open('all_posts.json', 'w+') as f:
+        json.dump(all_posts, f)
+
+def send_parsed(parsed, all_descriptions, all_posts):
     for parse in parsed:
         if parse['description'] in all_descriptions:
             continue
         all_posts.append(parse)
-        msg_number = sendPhoto(parse['path'], f"{parse['href']}")
-        notify(parse['description'], msg_number)
+        msg_number = sendPhoto(parse)
+        notify(parse, msg_number)
+    return all_posts
 
 
-    with open('all_posts.json', 'w+') as f:
-        all_posts = json.dump(all_posts, f)
 
+def main():
+    is_log_in = check_login()
+    if not is_log_in:
+        site_login()
+    parsed = []
+    for group in GROUPS:
+        search = group['search']
+        link = group['link']
+        search_in_group(link, search)
+        parsed += get_items(group['chat'])
+    all_descriptions, all_posts = get_all_posts()
+    before = len(all_posts)
+    all_posts = send_parsed(parsed, all_descriptions, all_posts)
+    after = len(all_posts)
+    set_all_posts(all_posts)
     empty_captures()
+    return after - before
 
-
+def restart_program():
+    os.execl(sys.executable, sys.executable, *sys.argv)
+init_driver()
+crashes = 0
 while True:
-    print("Start")
-    main()
-    print("Finsish")
-    sleep(60*3)
+    if crashes > 3:
+        restart_program()
+    try:
+        print("Start Iter")
+        main()
+    except Exception as e:
+        print("Boom")
+        crashes += 1
+    sleep(3*60)
