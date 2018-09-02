@@ -8,3 +8,4 @@ ENV LIBRARY_PATH=/lib:/usr/lib
 RUN pip3 install -r requirements.txt
 RUN apk add font-noto ttf-dejavu
 CMD ["python", "connector.py"]
+#docker run -it -v $(pwd):/usr/workspace connector
