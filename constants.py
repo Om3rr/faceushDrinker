@@ -8,8 +8,7 @@ JERUS = "https://www.facebook.com/groups/1592170434330768"
 CHAT_ID = "@hshshshsjs" #GENERAL CHAT
 #Will search all the keyword in each group (kinda grid search :D)
 KEYS = ["למסירה"]
-# LINKS =[REHAVIA, NACHLAOT, JERUS]
-LINKS =[REHAVIA]
+LINKS =[REHAVIA, NACHLAOT, JERUS]
 GROUPS = []
 for key in KEYS:
     for link in LINKS:
